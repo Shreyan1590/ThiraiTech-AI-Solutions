@@ -45,7 +45,8 @@ export default function ProfilePage() {
     
     const formatDate = (dateString?: string) => {
         if (!dateString) return 'N/A';
-        return new Date(dateString).toLocaleDateString('en-GB');
+        const date = new Date(dateString);
+        return `${date.toLocaleDateString('en-GB')} at ${date.toLocaleTimeString('en-GB')}`;
     };
 
     const getAvatarFallback = () => {
