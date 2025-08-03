@@ -1,29 +1,28 @@
+
 'use client';
 import { useAuth } from '@/hooks/use-auth';
 import { useEffect, useState } from 'react';
 import { redirect } from 'next/navigation';
-import { getUser } from '@/app/auth/actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import Header from '@/components/shared/Header';
 import Footer from '@/components/shared/Footer';
+import type { User } from 'firebase/auth';
 
+// A simplified profile type that can be derived from the auth user object
 interface UserProfile {
     uid: string;
-    email: string;
-    displayName: string;
-    photoURL?: string;
-    createdAt?: string;
-    lastLoginAt?: string;
-    lastLogoutAt?: string;
+    email?: string | null;
+    displayName?: string | null;
+    photoURL?: string | null;
+    createdAt?: string; // from user.metadata
+    lastLoginAt?: string; // from user.metadata
 }
 
 export default function ProfilePage() {
     const { user, loading: authLoading } = useAuth();
     const [profile, setProfile] = useState<UserProfile | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (authLoading) return;
@@ -32,23 +31,21 @@ export default function ProfilePage() {
             return;
         }
 
-        const fetchUser = async () => {
-            setLoading(true);
-            const { user: userData, error: userError } = await getUser(user.uid);
-            if (userError) {
-                setError(userError);
-            } else {
-                setProfile(userData);
-            }
-            setLoading(false);
-        };
+        // Use the client-side user object directly
+        setProfile({
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+            createdAt: user.metadata.creationTime,
+            lastLoginAt: user.metadata.lastSignInTime,
+        });
 
-        fetchUser();
     }, [user, authLoading]);
     
     const formatDate = (dateString?: string) => {
         if (!dateString) return 'N/A';
-        return new Date(dateString).toLocaleString();
+        return new Date(dateString).toLocaleDateString('en-GB');
     };
 
     const getAvatarFallback = () => {
@@ -62,7 +59,7 @@ export default function ProfilePage() {
             <Header />
             <main className="flex-grow container mx-auto p-4 md:p-6 lg:p-8">
                 <div className="max-w-4xl mx-auto">
-                    {(loading || authLoading) ? (
+                    {authLoading ? (
                         <Card>
                             <CardHeader className="items-center text-center">
                                 <Skeleton className="h-24 w-24 rounded-full" />
@@ -88,20 +85,11 @@ export default function ProfilePage() {
                                 </div>
                             </CardContent>
                         </Card>
-                    ) : error ? (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Error</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-destructive">{error}</p>
-                            </CardContent>
-                        </Card>
                     ) : profile ? (
                         <Card>
                             <CardHeader className="items-center text-center pb-8">
                                 <Avatar className="h-24 w-24 mb-4 border-4 border-primary">
-                                    <AvatarImage src={profile.photoURL} alt={profile.displayName} />
+                                    <AvatarImage src={profile.photoURL ?? undefined} alt={profile.displayName ?? ''} />
                                     <AvatarFallback className="text-4xl">{getAvatarFallback()}</AvatarFallback>
                                 </Avatar>
                                 <CardTitle className="text-3xl font-headline">{profile.displayName}</CardTitle>
@@ -119,10 +107,6 @@ export default function ProfilePage() {
                                 <div className="py-4 grid grid-cols-3 gap-4">
                                     <dt className="font-medium text-muted-foreground">Last Login</dt>
                                     <dd className="col-span-2">{formatDate(profile.lastLoginAt)}</dd>
-                                </div>
-                                <div className="py-4 grid grid-cols-3 gap-4">
-                                    <dt className="font-medium text-muted-foreground">Last Logout</dt>
-                                    <dd className="col-span-2">{formatDate(profile.lastLogoutAt)}</dd>
                                 </div>
                             </CardContent>
                         </Card>
